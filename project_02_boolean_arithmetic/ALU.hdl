@@ -1,0 +1,174 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+//
+// File name: projects/02/ALU.hdl
+
+
+/**
+ * ALU (Arithmetic Logic Unit)
+ *
+ * The ALU performs arithmetic and logical operations on two 16-bit inputs.
+ * The operation is controlled by six control bits:
+ *
+ * zx - zero x input
+ * nx - negate x input
+ * zy - zero y input
+ * ny - negate y input
+ * f  - select addition or AND operation
+ * no - negate final output
+ *
+ * The ALU also generates:
+ *
+ * zr - output is zero
+ * ng - output is negative
+ */
+
+
+CHIP ALU {
+
+    IN  
+        x[16], y[16],  // 16-bit inputs
+
+        zx,            // Zero x input
+        nx,            // Negate x input
+        zy,            // Zero y input
+        ny,            // Negate y input
+
+        f,             // 1 -> x+y, 0 -> x&y
+        no;            // Negate output
+
+
+    OUT 
+        out[16],       // ALU output
+        zr,            // 1 if output == 0
+        ng;            // 1 if output < 0
+
+
+    PARTS:
+
+
+    // First stage:
+    // Apply zeroing operation.
+    // zx/zy control bits can force inputs to 0.
+    Mux16(
+        a=x,
+        b=false,
+        sel=zx,
+        out=zxout
+    );
+
+    Mux16(
+        a=y,
+        b=false,
+        sel=zy,
+        out=zyout
+    );
+
+
+    // Generate inverted versions of x and y.
+    // These are used only when nx or ny is enabled.
+    Not16(
+        in=zxout,
+        out=notx
+    );
+
+    Not16(
+        in=zyout,
+        out=noty
+    );
+
+
+    // Second stage:
+    // Apply input negation if required.
+    //
+    // nx = 0 -> use original x
+    // nx = 1 -> use !x
+    //
+    // ny = 0 -> use original y
+    // ny = 1 -> use !y
+    Mux16(
+        a=zxout,
+        b=notx,
+        sel=nx,
+        out=nxout
+    );
+
+    Mux16(
+        a=zyout,
+        b=noty,
+        sel=ny,
+        out=nyout
+    );
+
+
+    // Calculate both possible operations in parallel.
+    // The f bit decides which one becomes the ALU output.
+    //
+    // f = 0 -> x AND y
+    // f = 1 -> x + y
+    Add16(
+        a=nxout,
+        b=nyout,
+        out=addout
+    );
+
+    And16(
+        a=nxout,
+        b=nyout,
+        out=andout
+    );
+
+
+    Mux16(
+        a=andout,
+        b=addout,
+        sel=f,
+        out=fout
+    );
+
+
+    // Final output negation stage.
+    // no = 1 performs bitwise NOT on the result.
+    Not16(
+        in=fout,
+        out=nfout
+    );
+
+    Mux16(
+        a=fout,
+        b=nfout,
+        sel=no,
+        out=out,
+        out[0..7]=zr1,
+        out[8..15]=zr2,
+        out[15]=ng
+    );
+
+
+    // Generate zero flag.
+    //
+    // Output is zero only when all 16 bits are zero.
+    // Check both halves separately using Or8Way.
+    Or8Way(
+        in=zr1,
+        out=or1
+    );
+
+    Or8Way(
+        in=zr2,
+        out=or2
+    );
+
+    Or(
+        a=or1,
+        b=or2,
+        out=or3
+    );
+
+    Not(
+        in=or3,
+        out=zr
+    );
+
+}
