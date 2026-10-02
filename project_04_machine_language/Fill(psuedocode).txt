@@ -1,0 +1,20 @@
+START
+
+i = 0
+
+LOOP FOREVER:
+
+    IF Keyboard is pressed:
+
+        WHILE i < 8192:
+
+            Screen[i] = -1
+            i = i + 1
+
+
+    ELSE:
+
+        WHILE i != 0:
+
+            Screen[i] = 0
+            i = i - 1
