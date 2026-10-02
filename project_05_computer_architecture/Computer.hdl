@@ -1,0 +1,45 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+//
+// File name: projects/05/Computer.hdl
+
+
+CHIP Computer {
+
+    IN reset;
+
+
+    PARTS:
+
+
+    // CPU executes instructions from ROM
+    // and communicates with Memory.
+    CPU(
+        instruction=instruction,
+        reset=reset,
+        inM=outMemo,
+        outM=CPUoutM,
+        writeM=wM,
+        addressM=adM,
+        pc=PC
+    );
+
+
+    // Main memory containing RAM, Screen and Keyboard.
+    Memory(
+        in=CPUoutM,
+        load=wM,
+        address=adM,
+        out=outMemo
+    );
+
+
+    // Instruction memory.
+    // PC determines the next instruction address.
+    ROM32K(
+        address=PC,
+        out=instruction
+    );
+
+}

@@ -1,0 +1,153 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+//
+// File name: projects/05/CPU.hdl
+
+
+CHIP CPU {
+
+    IN  inM[16],
+        instruction[16],
+        reset;
+
+    OUT outM[16],
+        writeM,
+        addressM[15],
+        pc[15];
+
+
+    PARTS:
+
+
+    // Select A-register input.
+    // A-instruction -> instruction value
+    // C-instruction -> ALU output
+    Mux16(
+        a=instruction,
+        b=ALUout,
+        sel=instruction[15],
+        out=Ain
+    );
+
+
+    // Identify A-instruction.
+    Not(in=instruction[15],out=notinstruction);
+
+
+    // A register loads for:
+    // 1. A-instruction
+    // 2. C-instruction with destination A
+    Or(
+        a=notinstruction,
+        b=instruction[5],
+        out=loadA
+    );
+
+    ARegister(
+        in=Ain,
+        load=loadA,
+        out=Aout,
+        out[0..14]=addressM
+    );
+
+
+    // Select ALU second input.
+    // a-bit = 0 -> A register
+    // a-bit = 1 -> Memory[A]
+    Mux16(
+        a=Aout,
+        b=inM,
+        sel=instruction[12],
+        out=AMout
+    );
+
+
+    // ALU control bits.
+    // Only active for C-instructions.
+    And(a=instruction[11],b=instruction[15],out=zx);
+    And(a=instruction[10],b=instruction[15],out=nx);
+
+    Or(a=instruction[9],b=notinstruction,out=zy);
+    Or(a=instruction[8],b=notinstruction,out=ny);
+
+    And(a=instruction[7],b=instruction[15],out=f);
+    And(a=instruction[6],b=instruction[15],out=no);
+
+
+    // Execute ALU operation.
+    ALU(
+        x=Dout,
+        y=AMout,
+        zx=zx,
+        nx=nx,
+        zy=zy,
+        ny=ny,
+        f=f,
+        no=no,
+        out=outM,
+        out=ALUout,
+        zr=zero,
+        ng=neg
+    );
+
+
+    // Write result to Memory when destination M is selected.
+    And(
+        a=instruction[15],
+        b=instruction[3],
+        out=writeM
+    );
+
+
+    // D register loads when destination D is selected.
+    And(
+        a=instruction[15],
+        b=instruction[4],
+        out=loadD
+    );
+
+    DRegister(
+        in=ALUout,
+        load=loadD,
+        out=Dout
+    );
+
+
+    // Determine positive ALU result.
+    Or(a=zero,b=neg,out=notpos);
+    Not(in=notpos,out=pos);
+
+
+    // Jump condition decoding.
+    // j1 -> JLT
+    // j2 -> JEQ
+    // j3 -> JGT
+    And(a=instruction[0],b=pos,out=j3);
+    And(a=instruction[1],b=zero,out=j2);
+    And(a=instruction[2],b=neg,out=j1);
+
+
+    // Combine jump conditions.
+    Or(a=j1,b=j2,out=j12);
+    Or(a=j12,b=j3,out=j123);
+
+
+    // Jump only for C-instructions.
+    And(
+        a=j123,
+        b=instruction[15],
+        out=jump
+    );
+
+
+    // Load PC with A-register value on jump.
+    PC(
+        in=Aout,
+        load=jump,
+        reset=reset,
+        inc=true,
+        out[0..14]=pc
+    );
+
+}
